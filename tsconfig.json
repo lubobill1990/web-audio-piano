@@ -14,8 +14,19 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "typeRoots": [
+      "node_modules/@types",
+      "src/types"
+    ],
+    "paths":{
+      "react-piano": ["./src/types/react-piano"]
+    }
   },
   "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "src/types/**"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

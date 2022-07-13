@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import "react-piano/dist/styles.css";
-import { Piano } from "./Piano";
+import { Piano } from "./piano";
 import { PianoPlayer } from "./piano-player";
 
 const WAVE_FORMS = ["sawtooth", "sine", "square", "triangle", "custom"];
