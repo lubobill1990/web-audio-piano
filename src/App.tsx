@@ -1,35 +1,31 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import "react-piano/dist/styles.css";
 import { Piano } from "./Piano";
-import { MidiNumbers } from "react-piano";
+import { PianoPlayer } from "./piano-player";
 
-function getFrequency(midiKey: number) {
-  const midiKeyA4 = MidiNumbers.fromNote("A4");
-  const frequencyA4 = 440;
-  const diffFromA4 = midiKey - midiKeyA4;
-  const chromaticMultiple = Math.pow(2, 1 / 12);
-  const frequencyMultipleFromA4 = Math.pow(chromaticMultiple, diffFromA4);
-  return frequencyA4 * frequencyMultipleFromA4;
-}
-
-function getVibratoNode(audioContext: AudioContext, param: AudioParam, frequency: number, gain: number) {
-  const vibrato = audioContext.createOscillator();
-  vibrato.frequency.setValueAtTime(frequency, 0);
-  const vibratoGain = audioContext.createGain();
-  vibratoGain.gain.setValueAtTime(gain, 0);
-  vibrato.connect(vibratoGain);
-  vibratoGain.connect(param);
-  return vibrato;
-}
-
-function getADSREnvolop(attack: number, decay:number, sustainLevel: number, ) {
-
-}
+const WAVE_FORMS = ["sawtooth", "sine", "square", "triangle", "custom"];
 
 function App() {
   const [audioContext, setAudioContext] = useState<AudioContext>();
-  const playingNodes = useRef(new Map<number, [OscillatorNode, GainNode]>());
+  const [masterGainNode, setMasterGainNode] = useState<GainNode>();
+  const [gain, setGain] = useState(0.5);
+  const [vibratoFrequency, setVibratoFrequency] = useState(0);
+  const [vibratoRange, setVibratoRange] = useState(0);
+  const [waveForm, setWaveForm] = useState(0);
+
+  useEffect(() => {
+    if (audioContext) {
+      const gainNode = audioContext.createGain();
+      setMasterGainNode(gainNode);
+      gainNode.connect(audioContext?.destination);
+    }
+  }, [audioContext]);
+  useEffect(() => {
+    if (masterGainNode) {
+      masterGainNode.gain.setValueAtTime(gain, 0);
+    }
+  }, [gain, masterGainNode]);
   return (
     <div className="App">
       {!audioContext && (
@@ -41,42 +37,70 @@ function App() {
           Init piano keyboard
         </button>
       )}
-      {audioContext && (
-        <Piano
-          playNote={(val: number) => {
-            console.log(MidiNumbers.getAttributes(val));
-            const oscillator = audioContext.createOscillator();
-            oscillator.frequency.setValueAtTime(getFrequency(val), 0);
-            const gainNode = audioContext.createGain();
-            const vibrato = getVibratoNode(audioContext, oscillator.frequency, 10, 2);
-            
-            const attack = 0.3;
-            const decayTime = 0.2;
-            const sustainLevel = 0.7;
-            const releaseTime = 0.2;
-            const now = audioContext.currentTime;
-            gainNode.gain.setValueAtTime(0, 0);
-            gainNode.gain.linearRampToValueAtTime(1, now + attack);
-            gainNode.gain.linearRampToValueAtTime(sustainLevel, now + attack + decayTime);
-            gainNode.gain.setValueAtTime(sustainLevel, now + attack + decayTime)
-            // gainNode.gain.exponentialRampToValueAtTime(0.001, now + attack + decayTime + 0.5);
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            playingNodes.current.set(val, [oscillator, gainNode]);
-            // gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5)
-            vibrato.start();
-            oscillator.start();
-            // oscillator.stop(audioContext.currentTime + 1);
-          }}
-          stopNote={(val: number) => {
-            const playingNode = playingNodes.current.get(val);
-            if (playingNode) {
-              console.log(MidiNumbers.getAttributes(val));
-              playingNode[1].gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 1);
-              playingNode[0].stop(audioContext.currentTime + 1);
-            }
-          }}
-        ></Piano>
+      {audioContext && masterGainNode && (
+        <>
+          <PianoPlayer
+            audioContext={audioContext}
+            outputNode={masterGainNode}
+            vibratoFrequency={vibratoFrequency}
+            vibratoRange={vibratoRange}
+            oscillatorType={WAVE_FORMS[waveForm] as OscillatorType}
+          >
+            {(playNote, stopNote) => {
+              return <Piano playNote={playNote} stopNote={stopNote}></Piano>;
+            }}
+          </PianoPlayer>
+          <div className="control">
+            <h2>
+              Master gain <span>{gain}</span>
+            </h2>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step={0.01}
+              value={gain}
+              className="slider"
+              onChange={(e) => setGain(parseFloat(e.target.value))}
+            ></input>
+            <h2>
+              Vibrate Frequency <span>{vibratoFrequency}</span>
+            </h2>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step={1}
+              value={vibratoFrequency}
+              className="slider"
+              onChange={(e) => setVibratoFrequency(parseFloat(e.target.value))}
+            ></input>
+            <h2>
+              Vibrate Range <span>{vibratoRange}</span>
+            </h2>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step={1}
+              value={vibratoRange}
+              className="slider"
+              onChange={(e) => setVibratoRange(parseFloat(e.target.value))}
+            ></input>
+            <h2>
+              Wave form <span>{WAVE_FORMS[waveForm]}</span>
+            </h2>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step={1}
+              value={waveForm}
+              className="slider"
+              onChange={(e) => setWaveForm(parseInt(e.target.value))}
+            ></input>
+          </div>
+        </>
       )}
     </div>
   );
